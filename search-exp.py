@@ -11,6 +11,7 @@ def reverse_file(input_file):
 
 def find_running_after_keyword(log_lines, keyword):
 	found_keyword = False
+	keyword = f"/{keyword} "
 
 	for line in log_lines:
 		if keyword in line:

@@ -133,9 +133,20 @@ def analyse_test(test, r1, r2, filter)
   end
 end
 
+def make_absolute_path(path)
+  if File.absolute_path?(path)
+    return path
+  else
+    return File.expand_path(path)
+  end
+end
+
 def main(args)
-  file1 = args[0][:file] + @file
-  file2 = args[1][:file] + @file
+  file1 = File.join(args[0][:file], @file)
+  file2 = File.join(args[1][:file], @file)
+
+  file1 = make_absolute_path(file1)
+  file2 = make_absolute_path(file2)
 
   @ret[:files][args[0][:hash]] = read_results(file1)
   @ret[:files][args[1][:hash]] = read_results(file2)
@@ -201,6 +212,37 @@ def read_results(sum_file)
   return ret
 end
 
+
+def helper()
+  puts <<-EOF
+
+Usage: ruby <script_name.rb> [options...]
+
+Global options:
+  --help                         Print usage and exit.
+
+  -h  | --hash                   Specify path and hash. (<path>:<hash>)
+
+  -f  | --file                   Specify file name to compare.
+
+  -t  | --target                 Specify target name. (Otherwise "" is used)
+
+  -v  | --verbose                 Enable verbose mode.
+
+  -vv                            Specify verbose filter and enable verbose mode.
+                                 ( npass | nfail | atest | rtest | passfail | failpass )
+
+  -o  | --output                  Specify output mode.
+                                 ( json | text | html )
+  EOF
+  exit()
+end
+
+
+if ARGV.length < 1
+  helper()
+end
+
 include Rules
 
 to_json do |opts|
@@ -229,6 +271,8 @@ end
 process_opts1 do |opts|
   while opts.any?
     case opts.shift
+    when "--help"
+      helper()
     when "-f", "--file"
       @file = opts.shift
     when "-t", "--target"
