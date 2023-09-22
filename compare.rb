@@ -124,11 +124,11 @@ def analyse_test(test, r1, r2, filter)
     count_dict[:new_fail] += 1
   elsif(r1 == 'UNSUPPORTED' && r1 != r2)
     puts "ADD_TEST: #{test}   (#{r1} => #{r2})" if @enable_logging
-    changes_dict[:add_test][test] = { before: r1, after: r2, comments: reason_filter }
+    changes_dict[:add_test][test] = { before: r1, after: r2 || "(null)", comments: reason_filter }
     count_dict[:add_test] += 1
   elsif(r2 == 'UNSUPPORTED' && r1 != r2)
     puts "REM_TEST: #{test}   (#{r1} => #{r2})" if @enable_logging
-    changes_dict[:rem_test][test] = { before: r1, after: r2, comments: reason_filter }
+    changes_dict[:rem_test][test] = { before: r1 || "(null)", after: r2, comments: reason_filter }
     count_dict[:rem_test] += 1
   end
 end
@@ -285,7 +285,8 @@ process_opts1 do |opts|
         abort("ERROR: Option not valid")
       end
       @verbose = true
-      @filter = tmp
+      @filter ||= []
+      @filter << tmp
     end
   end
 end

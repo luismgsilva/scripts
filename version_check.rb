@@ -27,6 +27,14 @@ def parsing_qemu(str)
   puts JSON.pretty_generate( { "qemu" => config } )
 end
 
+def parsing_dejagnu(str)
+  config = {}
+  str = str.gsub("\t", " ")
+  str = str.gsub("\n", " | ")
+  config[:build_version] = str
+  puts JSON.pretty_generate( { "dejagnu" => config } )
+end
+
 def option_parser(argv)
   options = {}
 
@@ -48,7 +56,6 @@ def main(argc, argv)
     abort("Usage: ruby script_name.rb <target> <version>")
   end
   options = option_parser(argv)
-  puts options
   case options[:target]
   when "gcc"
     parsing_gcc(options[:version])
@@ -56,8 +63,10 @@ def main(argc, argv)
     parsing_nsim(options[:version])
   when "qemu"
     parsing_qemu(options[:version])
+  when "dejagnu"
+    parsing_dejagnu(options[:version])
   else
-    abort("Supported targets: <gcc>, <nsim>, <qemu>")
+    abort("Supported targets: <gcc>, <nsim>, <qemu>, <dejagnu>")
   end
 end
 

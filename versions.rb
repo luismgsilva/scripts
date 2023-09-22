@@ -99,15 +99,15 @@ def retrieve_repository_information(options)
 
   arr = []
   repo_info = {}
-  build_name = options[:build_name] || "temp"
 
   if options[:config_file]
     config_log = validate_file(options[:config_file])
-    if `cat #{config_log}` =~ /-toolchain/
-      arr, repo_info[:configure] = retrieve_toolchain_paths(options, config_log)
-
-    elsif `cat #{config_log}` =~ /QEMU configure/
+    if `cat #{config_log}` =~ /QEMU configure/
       arr, repo_info[:configure] = retrieve_qemu_paths(options, config_log)
+      build_name = options[:build_name] || File.basename(arr[0])
+    else
+      arr, repo_info[:configure] = retrieve_toolchain_paths(options, config_log)
+      build_name = options[:build_name] || File.basename(arr[0])
     end
   elsif options[:parent]
     arr << validate_path(options[:parent])
@@ -154,7 +154,7 @@ Global options:
   -p  | --parent                 Specify sources' parent directory.
                                    (Otherwise main repository path is used)
 
-  -n  | --name                   Specify build name. (Otherwise "temp" is used)
+  -n  | --name                   Specify build name. (Otherwise base name is used)
 
   -op | --output-patch           Specify output path to patches.
 

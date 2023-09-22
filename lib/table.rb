@@ -24,7 +24,8 @@ def create_table(config, data, opts, filter)
       results1 = json["files"][hashes[0]]
       results2 = json["files"][hashes[1]]
 
-      tmp = []
+#      tmp = []
+      verbose_output = []
       row = [task]
       row[5] = results1["PASS"] || 0
       row[6] = results1["FAIL"] || 0
@@ -55,26 +56,37 @@ def create_table(config, data, opts, filter)
         "failpass" => "new_pass"
       }
 
+      @filter ||= []
+      verbose = []
 
-      verbose = (filter) ? [mapping[filter]] : ["new_pass", "new_fail", "add_test", "rem_test"]
+      if @filter.empty?
+        verbose = ["new_pass", "new_fail", "add_test", "rem_test"]
+      else
+        verbose = @filter.map { |f| mapping[f] }.compact
+      end
 
       verbose.each do |type|
-        if(json["changes"][type].values.count > 0)
-          tmp.push("  " + type.gsub("_", " ").capitalize)
-          json["changes"][type].each_pair do |t, v|
+        next if json["changes"][type].values.empty?
 
-            if v["before"] == "PASS" and v["after"] == "FAIL" and @filter == "passfail"
-              tmp.push("    (#{v["before"]}) => (#{v["after"]}) : #{t}")
-            elsif v["before"] == "FAIL" and v["after"] == "PASS" and @filter == "failpass"
-              tmp.push("    (#{v["before"]}) => (#{v["after"]}) : #{t}")
-            elsif !(%w[failpass passfail] & [@filter]).any?
-               tmp.push("    (#{v["before"]}) => (#{v["after"]}) : #{t}")
-            end
+        verbose_output << ("  " + type.gsub("_", " ").capitalize)
+
+        json["changes"][type].each_pair do |t, v|
+          #next if !@filter.empty? && !(%w[failpass passfail].include?(@filter.first))
+          if v["before"] == "PASS" and v["after"] == "FAIL" and (%w[passfail] & @filter).any?
+            verbose_output << "    (#{v["before"]}) => (#{v["after"]}) : #{t}"
+          elsif v["before"] == "FAIL" and v["after"] == "PASS" and (%w[failpass] & @filter).any?
+            verbose_output << "    (#{v["before"]}) => (#{v["after"]}) : #{t}"
+          elsif v["before"] != "PASS" and v["after"] == "PASS" and (%w[npass] & @filter).any?
+            verbose_output << "    (#{v["before"]}) => (#{v["after"]}) : #{t}"
+          elsif v["before"] != "FAIL" and v["after"] == "FAIL" and (%w[nfail] & @filter).any?
+            verbose_output << "    (#{v["before"]}) => (#{v["after"]}) : #{t}"
+          elsif !(%w[failpass passfail] & @filter).any?
+            verbose_output << "    (#{v["before"]}) => (#{v["after"]}) : #{t}"
           end
-          tmp.push("")
         end
+        verbose_output << ""
       end
-      data[task] = tmp
+      data[task] = verbose_output
 
     end
   end
