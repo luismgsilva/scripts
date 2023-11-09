@@ -141,15 +141,23 @@ def make_absolute_path(path)
   end
 end
 
-def main(args)
-  file1 = File.join(args[0][:file], @file)
-  file2 = File.join(args[1][:file], @file)
+def main1(options)
+
+  
+
+
+  file1_data = options[:files][0]
+  file2_data = options[:files][1]
+
+  file1 = File.join(file1_data[:file], options[:file])
+  file2 = File.join(file2_data[:file], options[:file])
 
   file1 = make_absolute_path(file1)
   file2 = make_absolute_path(file2)
+  
 
-  @ret[:files][args[0][:hash]] = read_results(file1)
-  @ret[:files][args[1][:hash]] = read_results(file2)
+  @ret[:files][file1_data[:hash]] = read_results(file1)
+  @ret[:files][file2_data[:hash]] = read_results(file2)
 
   data1 = File.exists?(file1) ? parse_sum(file1) : {}
   data2 = File.exists?(file2) ? parse_sum(file2) : {}
@@ -175,7 +183,7 @@ def main(args)
   end
 
 
-  @ret = { @name => @ret }
+  @ret = { options[:target] => @ret }
 end
 
 def read_results(sum_file)
@@ -213,7 +221,7 @@ def read_results(sum_file)
 end
 
 
-def helper()
+def help()
   puts <<-EOF
 
 Usage: ruby <script_name.rb> [options...]
@@ -239,61 +247,120 @@ Global options:
 end
 
 
-if ARGV.length < 1
-  helper()
+def option_parser(argv)
+  options = {}
+
+  while argv.any?
+    case argv.shift
+    when "--help"
+      help()
+    when "--send-email"
+      options[:send_email] = argv.shift
+    when "-h", "--hash"
+      opt = argv.shift.split(":")
+      options[:files] ||= []
+      options[:files] << { file: opt[0], hash: opt[1] }
+    when "-o", "--output"
+      options[:output] = argv.shift
+    when "-f", "--file"
+      options[:file] = argv.shift
+    when "-t", "--target"
+      options[:target] = argv.shift
+    when "-v", "--verbose"
+      options[:verbose] = true
+    when "-vv"
+      opt = argv.shift
+      if !(%w[npass nfail atest rtest passfail failpass] & [opt]).any?
+        abort("error: Option not valid")
+      end
+
+      options[:verbose] = true
+      options[:filter] ||= []
+      options[:filter] << opt
+    end
+  end
+
+  unless options[:files]
+    abort("error: Files not found.")
+  end
+
+  return options
 end
 
-include Rules
 
-to_json do |opts|
-  main(opts)
-  puts JSON.pretty_generate @ret
+def generate_json(options)
+  main1(options)
+  str = JSON.pretty_generate(@ret)
+  return str
 end
 
-to_text do |opts|
- main(opts)
- data = {}
- table = create_table(@ret, data, opts, @filter)
- puts table
- print_compare(data) if @verbose
+def generate_text(options)
+  main1(options)
+  data = {}
+  table = create_table(@ret, data, options, options[:filter])
+  puts table
+  if options[:verbose]
+    str = print_compare(data)
+  end
+  return str
 end
-
-to_html do |opts|
-  main(opts)
+  
+def generate_html(options)
+  main1(options)
   data = {}
   compare_html = nil
-  table = create_table(@ret, data, opts, @filter)
-  compare_html = generate_compare_html(data) if @verbose
-  table_html = convert_table_html(table, compare_html)
-  puts table_html
+  table = create_table(@ret, data, options, options[:filter])
+  if options[:verbose]
+    compare_html = generate_compare_html(data)
+  end
+  str = convert_table_html(table, compare_html)
+
+  return str 
 end
 
-process_opts1 do |opts|
-  while opts.any?
-    case opts.shift
-    when "--help"
-      helper()
-    when "-f", "--file"
-      @file = opts.shift
-    when "-t", "--target"
-      @name = opts.shift
-    when "-v", "--verbose"
-      @verbose = true
-    when "-vv"
-      tmp = opts.shift
-      if !(%w[npass nfail atest rtest passfail failpass] & [tmp]).any?
-        abort("ERROR: Option not valid")
-      end
-      @verbose = true
-      @filter ||= []
-      @filter << tmp
+
+def main(argc, argv)
+  if argc < 1
+    help()
+  end
+
+  options = option_parser(argv)
+  
+  puts options
+
+  output_format = options[:output] || "text"
+  result = case output_format
+           when "text"
+             generate_text(options)
+           when "json"
+             generate_json(options)
+           when "html"
+             generate_html(options)
+           else
+             abort("error: Output format invalid")
+           end
+
+  
+
+  puts(result)
+
+  if options[:send_email]
+    
+    if options[:output] != "html"
+      result = generate_html(options)
     end
+
+    temp_file = `mktemp`.chomp
+    File.write(temp_file, result)
+    recipients = options[:send_email]
+
+    script_path = File.join(__dir__, "lib", "my_email.py")
+    system("python3 #{script_path} #{recipients} -f #{temp_file}")
+    puts("python3 #{script_path} #{recipients} -f #{temp_file}")
   end
 end
 
-
-set_default(:text)
-
-execute()
-
+if __FILE__ == $PROGRAM_NAME
+  main(ARGV.length, ARGV)
+end
 

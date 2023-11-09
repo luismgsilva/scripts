@@ -94,13 +94,15 @@ def create_table(config, data, opts, filter)
 end
 
 def print_compare(data)
+  str = ""
   data.keys.each do |k|
     next if data[k].empty?
     v = data[k]
-    puts "=== #{k} ==="
-    puts v.join("\n")
-    puts ""
+    str += "=== #{k} ===\n"
+    str += v.join("\n")
+    str +=  "\n"
   end
+  return str
 end
 
 def generate_compare_html(data)
@@ -108,8 +110,8 @@ def generate_compare_html(data)
   data.keys.each do |k|
     next if data[k].empty?
     v = data[k]
-    html_content.push("<h2>#{k}</h2>")
-    html_content.push("<p>#{v.join('</p><p>')}</p>")
+    html_content.push("<h3>=== #{k} ===</h3>")
+    html_content.push("<p class=\"preserve-whitespace\">#{v.join('</p><p class="preserve-whitespace">')}</p>")
   end
   html_content
 end
@@ -135,6 +137,14 @@ def convert_table_html(table, html_content=nil)
 
       tr:nth-child(even) {
         background-color: #f2f2f2;
+      }
+
+      .preserve-whitespace {
+        white-space: pre;
+      }
+
+      .preserve-whitespace {
+        white-space: pre;
       }
     </style>
     <table>
