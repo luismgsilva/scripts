@@ -111,6 +111,7 @@ def retrieve_repository_information(options)
     end
   elsif options[:parent]
     arr << validate_path(options[:parent])
+    build_name = options[:build_name] || File.basename(arr[0])
   else
     help()
   end
