@@ -17,8 +17,22 @@ from email.mime.application import MIMEApplication
 #cc_recipients = ["luiss@synopsys.com"]
 #password = "xvscfirnoipabpff"
 
+import os
 
-def send_email(subject, body, sender, recipients, cc_recipients, password, attachment_path = None):
+def make_absolute_path(path):
+    if os.path.isabs(path):
+        return path
+    else:
+        return os.path.expanduser(os.path.expandvars(os.path.abspath(path)))
+
+def validate_path(path):
+    absolute_path = make_absolute_path(path)
+    if not os.path.exists(absolute_path) or not os.path.isdir(absolute_path):
+        raise SystemExit(f"{path} directory does not exist.")
+    return absolute_path
+
+
+def send_email(subject, body, sender, recipients, cc_recipients, password, attachments = None):
     #msg = MIMEText(body, "plain")
     msg = MIMEMultipart("alternative")
     msg['Subject'] = subject
@@ -28,15 +42,19 @@ def send_email(subject, body, sender, recipients, cc_recipients, password, attac
 
     plain_text = "ai"
     msg.attach(MIMEText(plain_text, "plain"))
-    msg.attach(MIMEText(body, "html"))
 
-    if attachment_path:
-      with open(attachment_path, "rb") as attachment_file:
-        attachment = MIMEApplication(attachment_file.read())
-        attachment.add_header("Content-Disposition", "attachment", filename=attachment_path)
-        msg.attach(attachment)
+    if body:
+      msg.attach(MIMEText(body, "html"))
 
-    with smtplib.SMTP_SSL('localhost', 2525) as smtp_server:
+    if attachments:
+      for attachment_path in attachments:
+        with open(make_absolute_path(attachment_path), "rb") as attachment_file:
+          attachment = MIMEApplication(attachment_file.read())
+          attachment.add_header("Content-Disposition", "attachment", filename=os.path.basename(attachment_path))
+          msg.attach(attachment)
+
+    #with smtplib.SMTP_SSL('localhost', 2525) as smtp_server:
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp_server:
       smtp_server.login(sender, password)
       all_recipients = recipients + cc_recipients
       smtp_server.sendmail(sender, all_recipients, msg.as_string())
@@ -52,17 +70,17 @@ def help():
 Usage: python3 <script_name.py> <recipient1,recipient2,...> [options...]
 
 Global options:
-  -h  | --help        Print usage and exit
+  -h  | --help			     Print usage and exit
   -cc | --carbon-copy                Specify address to send a copy to.
-									 Multiple addresses can be supplied using a comman ","
+				     Multiple addresses can be supplied using a comman ","
   -s  | --subjet                     Specify subject to email.
-  -f | --html-body-file				 Specify a html body file path.
+  -f  | --html-body-file	     Specify a html body file path.
 """)
 	sys.exit()
 
 
 def get_password():
-	with open("/home/luiss/.email_pass", "r") as file:
+	with open("/home/luis/.email_pass", "r") as file:
 		password = file.read()
 	return password.strip()
 
@@ -76,7 +94,8 @@ def set_defaults(options):
 	options["subject"]	 = "Email Subject"
 	options["body"]		 = "This is the body of the text message"
 	options["sender"]	 = "bsf.ci.noreply@gmail.com"
-	options["cc_recipients"] = ["luiss@synopsys.com"]
+	options["cc_recipients"] = []
+	options["attachments"]   = []
 	options["password"] = get_password()
 
 	return options
@@ -98,6 +117,8 @@ def option_parser(argv):
 			options["subject"] = argv.pop(0)
 		elif option in ["-f", "--body-file"]:
 			options["body"] = get_file(argv.pop(0))
+		elif option in ["-a", "--attachment"]:
+			options["attachments"] = argv.pop(0).split(",")
 
 
 	return options
@@ -113,18 +134,19 @@ def main():
 
 	options = option_parser(sys.argv)
 	
-	subject    = options["subject"]
-	body       = options["body"]
-	sender     = options["sender"]
-	recipients = options["recipients"]
+	subject       = options["subject"]
+	body          = options["body"]
+	sender        = options["sender"]
+	recipients    = options["recipients"]
 	cc_recipients = options["cc_recipients"]
-	password   = options["password"]
+	password      = options["password"]
+	attachments   = options["attachments"]
 
 	if not options["recipients"]:
 		error("error: Recipients not found")
 	
-	print(options)
-	send_email(subject, body, sender, recipients, cc_recipients, password)
+	#print(options)
+	send_email(subject, body, sender, recipients, cc_recipients, password, attachments)
 
 
 if __name__ == "__main__":

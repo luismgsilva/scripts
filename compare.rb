@@ -143,9 +143,6 @@ end
 
 def main1(options)
 
-  
-
-
   file1_data = options[:files][0]
   file2_data = options[:files][1]
 
@@ -318,6 +315,25 @@ def generate_html(options)
   return str 
 end
 
+def generate_email(result, options)
+
+  if options[:output] != "html"
+    data = {}
+    table = create_table(@ret, data, options, options[:filter])
+    if options[:verbose]
+      compare_html = generate_compare_html(data)
+    end
+    result = convert_table_html(table, compare_html)
+  end
+
+  temp_file = `mktemp`.chomp
+  File.write(temp_file, result)
+  recipients = options[:send_email]
+
+  script_path = File.join(__dir__, "lib", "my_email.py")
+  system("python3 #{script_path} #{recipients} -f #{temp_file}")
+  #puts("python3 #{script_path} #{recipients} -f #{temp_file}")
+end
 
 def main(argc, argv)
   if argc < 1
@@ -326,8 +342,6 @@ def main(argc, argv)
 
   options = option_parser(argv)
   
-  puts options
-
   output_format = options[:output] || "text"
   result = case output_format
            when "text"
@@ -336,6 +350,8 @@ def main(argc, argv)
              generate_json(options)
            when "html"
              generate_html(options)
+           when "email"
+             generate_email(options)
            else
              abort("error: Output format invalid")
            end
@@ -345,18 +361,7 @@ def main(argc, argv)
   puts(result)
 
   if options[:send_email]
-    
-    if options[:output] != "html"
-      result = generate_html(options)
-    end
-
-    temp_file = `mktemp`.chomp
-    File.write(temp_file, result)
-    recipients = options[:send_email]
-
-    script_path = File.join(__dir__, "lib", "my_email.py")
-    system("python3 #{script_path} #{recipients} -f #{temp_file}")
-    puts("python3 #{script_path} #{recipients} -f #{temp_file}")
+    generate_email(result, options)
   end
 end
 
